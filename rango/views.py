@@ -23,9 +23,11 @@ def index(request):
     context_dict['categories'] = category_list
     context_dict['pages'] = page_list
     response = render(request, 'rango/index.html', context=context_dict)
-    visitor_cookie_handler(request,response)
+    visitor_cookie_handler(request)
+    context_dict['visits'] = request.session['visits']
+
+    response = render(request, 'rango/index.html', context=context_dict)
     return response
-    #return render(request, 'rango/index.html', context=context_dict)
 
 
 def about(request):
@@ -167,18 +169,22 @@ def user_logout(request):
     return redirect(reverse('rango:index'))
 
 
-def visitor_cookie_handler(request, response):
+def get_server_side_cookie(request, cookie, default_val=None):
+    val = request.session.get(cookie)
+    if not val:
+        val = default_val
+    return val
 
-    visits = int(request.COOKIES.get('visits', '1'))
-    last_visit_cookie = request.COOKIES.get('last_visit', str(datetime.now()))
-    last_visit_time = datetime.strptime(last_visit_cookie[:-7],'%Y-%m-%d %H:%M:%S')
+
+def visitor_cookie_handler(request):
+    visits = int(get_server_side_cookie(request, 'visits', '1'))
+    last_visit_cookie = get_server_side_cookie(request, 'last_visit', str(datetime.now()))
+    last_visit_time = datetime.strptime(last_visit_cookie[:-7], '%Y-%m-%d %H:%M:%S')
 
     if (datetime.now() - last_visit_time).days > 0:
         visits = visits + 1
-# Update the last visit cookie now that we have updated the count
-        response.set_cookie('last_visit', str(datetime.now()))
+        request.session['last_visit'] = str(datetime.now())
     else:
-# Set the last visit cookie
-        response.set_cookie('last_visit', last_visit_cookie)
-# Update/set the visits cookie
-    response.set_cookie('visits', visits)
+        request.session['last_visit'] = last_visit_cookie
+
+    request.session['visits'] = visits
